@@ -29,6 +29,20 @@ const app = express();
 app.use(express.json({ verify: (req, _res, buf) => { req.raw = buf; } }));
 app.get('/', (_req, res) => res.sendFile(path.resolve('index.html')));
 
+const page = (title, body) => `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{font-family:system-ui,Arial,sans-serif;max-width:640px;margin:24px auto;padding:0 16px;line-height:1.7}</style></head><body><h1>${title}</h1>${body}</body></html>`;
+
+app.get('/privacy', (_req, res) => res.type('html').send(page('מדיניות פרטיות - האי של המוזרים', `
+<p>האי של המוזרים הוא משחק. כדי להצטרף אליו אנחנו מבקשים ממך לשלוח קוד בהודעה פרטית לחשבון האינסטגרם של המשחק (@strangeisland2026).</p>
+<p><b>איזה מידע אנחנו שומרים:</b> שם המשתמש שלך באינסטגרם ותאריך ההצטרפות בלבד. אנחנו לא שומרים את תוכן ההודעות, סיסמאות או מידע אישי אחר, ולא מוכרים או משתפים מידע עם אף גורם.</p>
+<p><b>למה:</b> כדי להציג את הבית שלך על האי ולוודא שהכינוי שייך לך.</p>
+<p><b>מחיקה:</b> אפשר לבקש מחיקה בכל עת, ראה <a href="/data-deletion">הוראות מחיקת מידע</a>.</p>
+<p>ליצירת קשר: הודעה פרטית ל־@strangeisland2026.</p>
+<hr><p dir="ltr">Island of the Weirdos stores only your Instagram username and join date to show your house on the map. We do not store message content or share data. To delete your data, see <a href="/data-deletion">data deletion</a>.</p>`)));
+
+app.get('/data-deletion', (_req, res) => res.type('html').send(page('מחיקת מידע - האי של המוזרים', `
+<p>כדי למחוק את המידע שלך מהאי, שלח הודעה פרטית עם המילה <b>מחק</b> מהחשבון שלך לחשבון @strangeisland2026. הבוט ימחק את שם המשתמש שלך ויאשר.</p>
+<p dir="ltr">To delete your data, send the word "delete" as a direct message to @strangeisland2026 from your account. The bot will remove your username and confirm.</p>`)));
+
 // 1) The page asks for a code for a handle
 app.post('/api/start', (req, res) => {
   const handle = clean(req.body?.handle);
@@ -76,6 +90,13 @@ app.post('/webhook', (req, res) => {
         const sender = ev.sender.id;
         try {
           console.log('webhook: message from', sender, JSON.stringify(text).slice(0, 60));
+          if (/מחק|DELETE/i.test(text)) {
+            const un = await usernameOf(sender);
+            const i = residents.findIndex((r) => r.handle === un);
+            if (i >= 0) { residents.splice(i, 1); save(); await sendDM(sender, 'מחקתי אותך מהאי.'); }
+            else { await sendDM(sender, 'לא מצאתי אותך על האי.'); }
+            continue;
+          }
           const m = text.toUpperCase().match(/WEIRD-\d{4}/);
           if (!m) { await sendDM(sender, 'שלח לי את הקוד שקיבלת באתר, למשל WEIRD-1234'); continue; }
           const p = pending.get(m[0]);
