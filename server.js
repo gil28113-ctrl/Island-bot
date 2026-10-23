@@ -62,8 +62,10 @@ app.post('/webhook', (req, res) => {
   const sig = req.get('x-hub-signature-256') || '';
   const expected = 'sha256=' + crypto.createHmac('sha256', IG_APP_SECRET).update(req.raw).digest('hex');
   if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+    console.log('webhook: bad signature (check IG_APP_SECRET)');
     return res.sendStatus(401);
   }
+  console.log('webhook: received', JSON.stringify(req.body).slice(0, 300));
   res.sendStatus(200);
 
   (async () => {
@@ -73,11 +75,15 @@ app.post('/webhook', (req, res) => {
         if (!text || ev.message.is_echo) continue;
         const sender = ev.sender.id;
         try {
+          console.log('webhook: message from', sender, JSON.stringify(text).slice(0, 60));
           const m = text.toUpperCase().match(/WEIRD-\d{4}/);
           if (!m) { await sendDM(sender, 'שלח לי את הקוד שקיבלת באתר, למשל WEIRD-1234'); continue; }
           const p = pending.get(m[0]);
           if (!p || p.exp < Date.now()) { await sendDM(sender, 'הקוד לא תקף או שפג תוקפו. תבקש קוד חדש באתר.'); continue; }
-          if ((await usernameOf(sender)) !== p.handle) { await sendDM(sender, 'הקוד הזה שייך למשתמש אחר.'); continue; }
+          const uname = await usernameOf(sender);
+          console.log('webhook: sender username =', uname, ', expected =', p.handle);
+          if (uname !== p.handle) { await sendDM(sender, 'הקוד הזה שייך למשתמש אחר.'); continue; }
+          console.log('webhook: verified', p.handle);
           p.verified = true;
           residents.push({ handle: p.handle, joined: Date.now() });
           save();
