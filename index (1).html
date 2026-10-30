@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>האי של המוזרים - סימולטור ענק ומלא פלאים</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js for 3D world -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            font-family: 'Varela Round', sans-serif;
+            background: #061426;
+            color: #f8fafc;
+            overflow: hidden;
+            touch-action: none;
+            margin: 0;
+            padding: 0;
+        }
+        .glass {
+            background: rgba(5, 17, 32, 0.88);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(125, 211, 252, 0.22);
+            box-shadow: 0 18px 55px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        canvas {
+            display: block;
+            outline: none;
+            width: 100%;
+            height: 100%;
+        }
+        .pulse-ring {
+            box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(236, 72, 153, 0); }
+            100% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
+        }
+        .fullscreen-hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between p-3 select-none">
+
+    <!-- Clean 10-Second Auto-Loading Intro Screen (No unnecessary text) -->
+    <div id="intro-screen" class="fixed inset-0 bg-[#061426]/98 backdrop-blur-2xl z-50 flex flex-col items-center justify-center p-6 text-center transition-all duration-1000">
+        <div class="w-40 h-40 rounded-full p-1.5 bg-gradient-to-tr from-cyan-300 via-blue-500 to-violet-600 shadow-2xl mb-6 animate-pulse flex items-center justify-center">
+            <img src="80796_2.jpg" alt="לוגו האי המוזר" class="w-full h-full rounded-full object-cover border-2 border-white/50" onerror="this.src='https://placehold.co/200x200/1e293b/ec4899?text=Strange+Island'" />
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-violet-300 mb-6">
+            האי של המוזרים
+        </h1>
+        
+        <!-- 10-Second Slow Progress Bar -->
+        <div class="w-64 h-3 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700 shadow-inner">
+            <div id="loading-bar" class="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500 rounded-full transition-all duration-100" style="width: 0%;"></div>
+        </div>
+        <div id="loading-percent" class="text-xs text-slate-400 mt-3 font-mono">טוען את האי המוזר... 0%</div>
+    </div>
+
+    <!-- Top Bar: Clean Professional UI -->
+    <header id="top-ui" class="w-full max-w-md mx-auto glass rounded-3xl p-3.5 shadow-2xl flex flex-col gap-2.5 z-20 transition-all duration-300">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full overflow-hidden shadow-lg border border-cyan-400/30 flex-shrink-0">
+                    <img src="80796_2.jpg" alt="לוגו" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/100x100/1e293b/ec4899?text=Logo'" />
+                </div>
+                <div>
+                    <h1 id="ig-username-display" class="font-bold text-sm text-cyan-300">@strangeisland2026</h1>
+                    <div class="text-[11px] text-slate-400">האי של המוזרים</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button type="button" onclick="toggleFullscreen()" class="glass p-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 transition text-emerald-400 border border-emerald-500/40 cursor-pointer" title="הגדל למסך מלא">
+                    <i id="fullscreen-icon" class="fa-solid fa-expand"></i>
+                </button>
+                <button type="button" onclick="openVerificationModal()" class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1 text-cyan-300 border border-cyan-400/30 cursor-pointer">
+                    <i class="fa-solid fa-user-gear"></i> ניהול
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-800/80 text-center">
+            <div class="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                <div class="text-[10px] text-slate-400"><i class="fa-solid fa-users text-purple-400"></i> עוקבים</div>
+                <div id="followers-count" class="text-base font-extrabold text-purple-300">0</div>
+            </div>
+            <div class="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                <div class="text-[10px] text-slate-400"><i class="fa-solid fa-house-chimney text-cyan-300"></i> בתים באי</div>
+                <div id="houses-count" class="text-base font-extrabold text-cyan-300">0</div>
+            </div>
+            <div class="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                <div class="text-[10px] text-slate-400"><i class="fa-solid fa-clock text-emerald-400"></i> עדכון הבא</div>
+                <div id="countdown-label" class="text-base font-extrabold text-emerald-300">30:00</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Floating Return Button when in Fullscreen Mode -->
+    <button type="button" id="exit-fullscreen-btn" onclick="toggleFullscreen()" class="fixed top-4 right-4 glass px-4 py-2.5 rounded-2xl text-xs font-bold text-cyan-300 border border-cyan-400/30 shadow-2xl z-50 fullscreen-hidden flex items-center gap-2 cursor-pointer bg-slate-950/90">
+        <i class="fa-solid fa-compress"></i> חזרה למסך רגיל
+    </button>
+
+    <!-- Main 3D Realistic Ocean, Giant Sand Island Canvas -->
+    <main id="canvas-container" class="absolute inset-0 w-full h-full z-0">
+        <!-- Live event banner -->
+        <div id="event-banner" class="absolute top-28 left-4 right-4 max-w-md mx-auto glass bg-purple-950/90 p-3 rounded-2xl text-center text-xs shadow-2xl transition-all duration-500 transform -translate-y-20 opacity-0 pointer-events-none border border-cyan-400/30 z-30">
+            <p id="event-text" class="font-bold text-pink-200">✨ נתונים עודכנו בהצלחה!</p>
+        </div>
+
+        <!-- Touch & Zoom Instructions -->
+        <div id="zoom-hint" class="absolute bottom-28 left-1/2 transform -translate-x-1/2 glass px-4 py-2 rounded-full text-xs text-slate-200 border border-slate-700 pointer-events-none flex items-center gap-2 z-20 shadow-xl whitespace-nowrap transition-opacity">
+            <i class="fa-solid fa-magnifying-glass-plus text-cyan-300"></i> גררו לסיבוב · צביטה או גלילה להתקרבות אל האי!
+        </div>
+    </main>
+
+    <!-- Bottom Controls & House Customization Menu -->
+    <footer id="bottom-ui" class="w-full max-w-md mx-auto glass rounded-3xl p-3.5 shadow-2xl flex flex-col gap-2.5 z-20 mb-2 transition-all duration-300">
+        <div class="flex items-center justify-between">
+            <h2 class="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-wand-magic-sparkles text-cyan-300"></i> עיצוב האי והבתים של כולם:
+            </h2>
+            <span class="text-[10px] bg-purple-500/20 text-purple-300 px-2.5 py-0.5 rounded-full font-semibold">אי מלא פלאים 🛸</span>
+        </div>
+
+        <div class="bg-gradient-to-r from-purple-900/50 to-pink-900/50 p-2.5 rounded-2xl border border-pink-500/30 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">✨</span>
+                <div>
+                    <div class="text-[11px] text-white font-bold" id="current-mission">עצמים מוזרים מרחפים בשמים סביב האי</div>
+                    <div class="text-[9px] text-slate-300">השינויים נשמרים בענן משותף לכל הגולשים</div>
+                </div>
+            </div>
+            <button type="button" onclick="openCustomizer()" class="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:opacity-95 text-white font-bold rounded-xl text-xs shadow-lg transition transform active:scale-95 flex items-center gap-1.5 whitespace-nowrap pulse-ring cursor-pointer">
+                <i class="fa-solid fa-paintbrush"></i> מעצב הבתים
+            </button>
+        </div>
+    </footer>
+
+    <!-- Verification & Cloud Admin Modal -->
+    <div id="verification-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass w-full max-w-sm p-6 rounded-3xl border border-cyan-400/30 shadow-2xl flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-purple-300 flex items-center gap-2">
+                    <i class="fa-solid fa-user-gear text-cyan-300"></i> ניהול ענן ועדכון עוקבים
+                </h3>
+                <button type="button" onclick="closeVerificationModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <p class="text-xs text-slate-300 leading-relaxed">
+                הכנס את קוד הניהול הסודי שלך כדי לעדכן את מספר העוקבים של <span class="text-cyan-300 font-bold">@strangeisland2026</span> עבור **כולם** בענן:
+            </p>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] text-slate-400">קוד ניהול סודי:</label>
+                <input type="password" id="admin-pass-input" placeholder="הכנס קוד סודי..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-pink-500" />
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] text-slate-400">מספר עוקבים חדש לענן:</label>
+                <input type="number" id="manual-followers-input" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-base font-bold focus:outline-none focus:border-pink-500" value="0" min="0" />
+            </div>
+
+            <button type="button" onclick="applyCloudFollowers()" class="w-full py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold shadow flex items-center justify-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-cloud-arrow-up"></i> שמור בענן ועדכן לכולם
+            </button>
+        </div>
+    </div>
+
+    <!-- House Customization Modal -->
+    <div id="customizer-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass w-full max-w-sm p-6 rounded-3xl border border-cyan-400/30 shadow-2xl flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-purple-300 flex items-center gap-2">
+                    <i class="fa-solid fa-house-chimney-user text-cyan-300"></i> עיצוב אישי לבית באי
+                </h3>
+                <button type="button" onclick="closeCustomizer()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <p class="text-xs text-slate-300 leading-relaxed">
+                בחר את הבית שברצונך לעצב, בחר צבע מרהיב או כתוב את שם בעל הבית:
+            </p>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] text-slate-400">בחר מספר בית (1 עד <span id="max-house-num">1</span>):</label>
+                <input type="number" id="target-house-id" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-sm focus:outline-none focus:border-pink-500" value="1" min="1" />
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] text-slate-400">צבע הבית:</label>
+                <select id="house-color-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-xs focus:outline-none focus:border-pink-500">
+                    <option value="0xef4444">אדום לוהט 🔥</option>
+                    <option value="0x3b82f6">כחול עמוק 🌊</option>
+                    <option value="0xeab308">צהוב ניאון ⚡</option>
+                    <option value="0xa855f7">סגול קסום 🔮</option>
+                    <option value="0x06b6d4">טורקיז עתידני 🌐</option>
+                    <option value="0xec4899" selected>ורוד פלמינגו ✨</option>
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] text-slate-400">שם בעל הבית (יופיע באי):</label>
+                <input type="text" id="house-owner-input" placeholder="לדוגמה: @my_friend" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-sm focus:outline-none focus:border-pink-500" />
+            </div>
+
+            <button type="button" onclick="saveHouseCustomization()" class="w-full py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold shadow flex items-center justify-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-check"></i> החל עיצוב ושמור בענן
+            </button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK & 3D Simulation Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'strange-island-2026';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+        let db, auth;
+        let followers = 0;
+        let housesCount = 0;
+        let houseCustomizations = {};
+        
+        let scene, camera, renderer, islandGroup, waterMesh, sandMesh, bottomMesh;
+        let structures = [];
+        let realisticTrees = [];
+        let floatingWeirdObjects = [];
+
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let cameraRadius = 820;
+        let cameraAngleX = 0.92;
+        let cameraAngleY = 0;
+        let touchStartDist = 0;
+        let isFullscreen = false;
+
+        let cloudCountdownTarget = Date.now() + 1800000;
+
+        window.onload = async function() {
+            startTenSecondsIntro();
+            init3D();
+            startSyncedCloudTimer();
+
+            try {
+                if (Object.keys(firebaseConfig).length > 0) {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    await signInAnonymously(auth);
+
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'island_state_logo_v4');
+                    
+                    onSnapshot(docRef, (docSnap) => {
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            followers = data.followers !== undefined ? data.followers : 0;
+                            housesCount = followers;
+                            houseCustomizations = data.customizations || {};
+                            
+                            if (data.countdownTimestamp) {
+                                cloudCountdownTarget = data.countdownTimestamp;
+                            } else {
+                                cloudCountdownTarget = Date.now() + 1800000;
+                                setDoc(docRef, { countdownTimestamp: cloudCountdownTarget }, { merge: true });
+                            }
+
+                            rebuildIsland();
+                            updateStatsUI();
+                        } else {
+                            setDoc(docRef, { followers: 0, customizations: {}, countdownTimestamp: Date.now() + 1800000 });
+                        }
+                    }, (error) => {
+                        console.error("Cloud sync error:", error);
+                    });
+                } else {
+                    followers = 0;
+                    housesCount = 0;
+                    rebuildIsland();
+                    updateStatsUI();
+                }
+            } catch (e) {
+                console.error("Firebase init failed:", e);
+                followers = 0;
+                housesCount = 0;
+                rebuildIsland();
+                updateStatsUI();
+            }
+        };
+
+        function startTenSecondsIntro() {
+            let progress = 0;
+            const bar = document.getElementById('loading-bar');
+            const percentText = document.getElementById('loading-percent');
+            
+            const interval = setInterval(() => {
+                progress += 1; // 100 steps of 100ms = 10 seconds
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        const intro = document.getElementById('intro-screen');
+                        intro.classList.add('opacity-0', 'pointer-events-none');
+                        setTimeout(() => {
+                            intro.style.display = 'none';
+                        }, 1000);
+                    }, 300);
+                }
+                bar.style.width = progress + '%';
+                percentText.innerText = `טוען את האי המוזר... ${progress}%`;
+            }, 100);
+        }
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x061426);
+            scene.fog = new THREE.FogExp2(0x061426, 0.00062);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 4500);
+            updateCameraPosition();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 0.92;
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0x9bbbd8, 0.72);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffe4bd, 2.15);
+            directionalLight.position.set(-260, 520, 310);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.set(2048, 2048);
+            directionalLight.shadow.camera.left = -520;
+            directionalLight.shadow.camera.right = 520;
+            directionalLight.shadow.camera.top = 520;
+            directionalLight.shadow.camera.bottom = -520;
+            scene.add(directionalLight);
+
+            const waterGeo = new THREE.PlaneGeometry(6000, 6000, 16, 16);
+            const waterMat = new THREE.MeshStandardMaterial({
+                color: 0x063b61,
+                roughness: 0.28,
+                metalness: 0.48
+            });
+            waterMesh = new THREE.Mesh(waterGeo, waterMat);
+            waterMesh.rotation.x = -Math.PI / 2;
+            waterMesh.position.y = -10;
+            waterMesh.receiveShadow = true;
+            scene.add(waterMesh);
+
+            islandGroup = new THREE.Group();
+            scene.add(islandGroup);
+
+            createFloatingWeirdObjects();
+
+            const dom = renderer.domElement;
+
+            dom.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            dom.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+
+                cameraAngleY -= deltaX * 0.005;
+                cameraAngleX = Math.max(0.1, Math.min(1.4, cameraAngleX + deltaY * 0.005));
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+                updateCameraPosition();
+            });
+
+            window.addEventListener('mouseup', () => { isDragging = false; });
+
+            dom.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                cameraRadius = Math.max(115, Math.min(1450, cameraRadius + e.deltaY * 0.32));
+                updateCameraPosition();
+            }, { passive: false });
+
+            dom.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                } else if (e.touches.length === 2) {
+                    isDragging = false;
+                    touchStartDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                }
+            });
+
+            dom.addEventListener('touchmove', (e) => {
+                if (isDragging && e.touches.length === 1) {
+                    const deltaX = e.touches[0].clientX - previousMousePosition.x;
+                    const deltaY = e.touches[0].clientY - previousMousePosition.y;
+
+                    cameraAngleY -= deltaX * 0.005;
+                    cameraAngleX = Math.max(0.1, Math.min(1.4, cameraAngleX + deltaY * 0.005));
+
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    updateCameraPosition();
+                } else if (e.touches.length === 2) {
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    const diff = touchStartDist - dist;
+                    cameraRadius = Math.max(115, Math.min(1450, cameraRadius + diff * 0.32));
+                    touchStartDist = dist;
+                    updateCameraPosition();
+                }
+            });
+
+            window.addEventListener('touchend', () => { isDragging = false; });
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && isFullscreen && !document.fullscreenElement) {
+                    isFullscreen = false;
+                    document.getElementById('top-ui').classList.remove('fullscreen-hidden');
+                    document.getElementById('bottom-ui').classList.remove('fullscreen-hidden');
+                    document.getElementById('zoom-hint').classList.remove('fullscreen-hidden');
+                    document.getElementById('exit-fullscreen-btn').classList.add('fullscreen-hidden');
+                    document.getElementById('fullscreen-icon').className = 'fa-solid fa-expand';
+                }
+            });
+
+            animate();
+        }
+
+        function createFloatingWeirdObjects() {
+            const geomTypes = [
+                new THREE.SphereGeometry(4, 16, 16),
+                new THREE.ConeGeometry(3, 7, 8),
+                new THREE.TorusGeometry(4, 1.2, 16, 32),
+                new THREE.BoxGeometry(5, 5, 5)
+            ];
+            const matColors = [0xec4899, 0xa855f7, 0x38bdf8, 0xfacc15, 0x4ade80];
+
+            for (let i = 0; i < 25; i++) {
+                const geo = geomTypes[Math.floor(Math.random() * geomTypes.length)];
+                const mat = new THREE.MeshStandardMaterial({ 
+                    color: matColors[i % matColors.length], 
+                    emissive: matColors[i % matColors.length],
+                    emissiveIntensity: 0.3,
+                    roughness: 0.2 
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 90 + Math.random() * 220;
+                const height = 20 + Math.random() * 120;
+
+                mesh.position.set(Math.cos(angle) * dist, height, Math.sin(angle) * dist);
+                mesh.userData = { 
+                    speedX: (Math.random() - 0.5) * 0.08, 
+                    speedY: (Math.random() - 0.5) * 0.05,
+                    baseY: height 
+                };
+
+                scene.add(mesh);
+                floatingWeirdObjects.push(mesh);
+            }
+        }
+
+        function updateCameraPosition() {
+            const x = cameraRadius * Math.sin(cameraAngleX) * Math.sin(cameraAngleY);
+            const y = cameraRadius * Math.cos(cameraAngleX);
+            const z = cameraRadius * Math.sin(cameraAngleX) * Math.cos(cameraAngleY);
+
+            camera.position.set(x, Math.max(5, y), z);
+            camera.lookAt(0, 42, 0);
+        }
+
+        function rebuildIsland() {
+            while(islandGroup.children.length > 0) {
+                islandGroup.remove(islandGroup.children[0]);
+            }
+            structures = [];
+            realisticTrees = [];
+
+            const currentIslandRadius = Math.max(300, 300 + Math.sqrt(housesCount) * 18);
+
+            const sandGeo = new THREE.CylinderGeometry(currentIslandRadius, currentIslandRadius - 15, 4.0, 32);
+            const sandMat = new THREE.MeshStandardMaterial({ color: 0xd8bd82, roughness: 0.96 });
+            sandMesh = new THREE.Mesh(sandGeo, sandMat);
+            sandMesh.position.y = -2.0;
+            islandGroup.add(sandMesh);
+
+            const bottomGeo = new THREE.ConeGeometry(currentIslandRadius - 15, 70, 16);
+            const bottomMat = new THREE.MeshStandardMaterial({ color: 0x183b50, roughness: 0.92 });
+            bottomMesh = new THREE.Mesh(bottomGeo, bottomMat);
+            bottomMesh.position.y = -37.0;
+            bottomMesh.rotation.x = Math.PI;
+            islandGroup.add(bottomMesh);
+
+            createBurjKhalifaTower();
+            createGiantLogoFlagTower();
+
+            for (let i = 0; i < 150; i++) {
+                spawnRealisticTree(i, currentIslandRadius);
+            }
+
+            spawnOptimizedBuildings(housesCount, currentIslandRadius);
+        }
+
+        function createBurjKhalifaTower() {
+            // מגדל בורג׳ ח׳ליפה – גורד שחקים ענקי ומדורג, נקודת הציון המרכזית של האי
+            const towerGroup = new THREE.Group();
+            const glass = new THREE.MeshStandardMaterial({ color: 0x8cc9e8, metalness: 0.78, roughness: 0.19 });
+            const darkGlass = new THREE.MeshStandardMaterial({ color: 0x173b5b, metalness: 0.82, roughness: 0.16 });
+            const silver = new THREE.MeshStandardMaterial({ color: 0xb9cbd8, metalness: 0.88, roughness: 0.22 });
+            const warmWindows = new THREE.MeshStandardMaterial({ color: 0xffd98a, emissive: 0xffa52e, emissiveIntensity: 0.32, metalness: 0.25, roughness: 0.35 });
+
+            // בסיס רחב ומתחם כניסה
+            const podium = new THREE.Mesh(new THREE.BoxGeometry(42, 8, 42), darkGlass);
+            podium.position.y = 4; podium.castShadow = true; podium.receiveShadow = true; towerGroup.add(podium);
+            const podiumRoof = new THREE.Mesh(new THREE.BoxGeometry(48, 1.8, 48), silver);
+            podiumRoof.position.y = 8.8; towerGroup.add(podiumRoof);
+
+            // קומות מדורגות בשלוש כנפיים – צללית בהשראת בורג׳ ח׳ליפה
+            const tiers = [
+                {y:18,h:20,w:31,d:31}, {y:38,h:22,w:27,d:27},
+                {y:60,h:25,w:23,d:23}, {y:85,h:28,w:19,d:19},
+                {y:113,h:31,w:15.5,d:15.5}, {y:144,h:34,w:12.5,d:12.5},
+                {y:178,h:36,w:9.8,d:9.8}, {y:214,h:38,w:7.2,d:7.2},
+                {y:252,h:35,w:5.1,d:5.1}, {y:287,h:31,w:3.5,d:3.5}
+            ];
+            tiers.forEach((t,i)=>{
+                const section = new THREE.Mesh(new THREE.BoxGeometry(t.w,t.h,t.d), i%2?glass:darkGlass);
+                section.position.y=t.y+t.h/2; section.castShadow=true; section.receiveShadow=true; towerGroup.add(section);
+                const belt = new THREE.Mesh(new THREE.BoxGeometry(t.w+1.2,1.1,t.d+1.2),silver);
+                belt.position.y=t.y+t.h-0.6; towerGroup.add(belt);
+                // פסי חלונות חמים שמדגישים את הגובה בלילה
+                for(let side=0;side<4;side++){
+                    const strip = new THREE.Mesh(new THREE.BoxGeometry(t.w*.72,.55,.12),warmWindows);
+                    strip.position.set(0,t.y+t.h*.55, t.d/2+.08);
+                    strip.rotation.y=side*Math.PI/2; towerGroup.add(strip);
+                }
+            });
+            const spireBase = new THREE.Mesh(new THREE.CylinderGeometry(1.9,3.2,34,12),glass);
+            spireBase.position.y=321; towerGroup.add(spireBase);
+            const spire = new THREE.Mesh(new THREE.CylinderGeometry(.12,1.9,115,12),silver);
+            spire.position.y=395; towerGroup.add(spire);
+            const beacon = new THREE.PointLight(0x8bdcff,2.2,95); beacon.position.set(0,445,0); towerGroup.add(beacon);
+            const tip = new THREE.Mesh(new THREE.SphereGeometry(1.25,12,12),new THREE.MeshBasicMaterial({color:0xb9edff}));
+            tip.position.y=453; towerGroup.add(tip);
+            towerGroup.position.set(-28,0,-24);
+            islandGroup.add(towerGroup);
+        }
+
+        function createGiantLogoFlagTower() {
+            const flagGroup = new THREE.Group();
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.9, roughness: 0.1 });
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 110, 8), poleMat);
+            pole.position.y = 55.0;
+            flagGroup.add(pole);
+
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.load(
+                '80796_2.jpg',
+                (texture) => {
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    const flagMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+                    const flagGeo = new THREE.PlaneGeometry(75, 75);
+                    const flagMesh = new THREE.Mesh(flagGeo, flagMat);
+                    flagMesh.position.set(38.5, 82, 0);
+                    flagGroup.add(flagMesh);
+                },
+                undefined,
+                (err) => {
+                    const flagMat = new THREE.MeshBasicMaterial({ color: 0xec4899, side: THREE.DoubleSide });
+                    const flagGeo = new THREE.PlaneGeometry(75, 75);
+                    const flagMesh = new THREE.Mesh(flagGeo, flagMat);
+                    flagMesh.position.set(38.5, 82, 0);
+                    flagGroup.add(flagMesh);
+                }
+            );
+
+            flagGroup.position.set(45, 0, 0);
+            islandGroup.add(flagGroup);
+        }
+
+        function spawnRealisticTree(index, maxRadius) {
+            const treeGroup = new THREE.Group();
+            const angle = (index / 150) * Math.PI * 2;
+            const radius = 45 + Math.random() * (maxRadius - 55);
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.7, 0.9, 5.2, 6),
+                new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9 })
+            );
+            trunk.position.y = 2.6;
+            treeGroup.add(trunk);
+
+            const leaves = new THREE.Mesh(
+                new THREE.DodecahedronGeometry(3.5, 1),
+                new THREE.MeshStandardMaterial({ color: 0x247a45, roughness: 0.82 })
+            );
+            leaves.position.y = 6.0;
+            treeGroup.add(leaves);
+
+            treeGroup.position.set(x, 0, z);
+            islandGroup.add(treeGroup);
+            realisticTrees.push(treeGroup);
+        }
+
+        function spawnOptimizedBuildings(totalCount, maxRadius) {
+            if (totalCount <= 0) return;
+
+            const boxGeo = new THREE.BoxGeometry(2.2, 2.6, 2.2);
+            const roofGeo = new THREE.ConeGeometry(1.8, 1.8, 4);
+            const colors = [0xef4444, 0x3b82f6, 0xeab308, 0xa855f7, 0x06b6d4, 0xf97316, 0xec4899];
+
+            for (let i = 1; i <= totalCount; i++) {
+                const angle = i * 137.5 * (Math.PI / 180);
+                const radius = 15 + Math.sqrt(i) * 4.2;
+                
+                if (radius > maxRadius - 25) continue;
+
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+
+                let baseColor = colors[i % colors.length];
+                if (houseCustomizations[i] && houseCustomizations[i].color) {
+                    baseColor = parseInt(houseCustomizations[i].color);
+                }
+
+                const buildingGroup = new THREE.Group();
+                const bodyMat = new THREE.MeshStandardMaterial({ color: baseColor });
+                const roofMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
+
+                const body = new THREE.Mesh(boxGeo, bodyMat);
+                body.position.y = 1.3;
+                buildingGroup.add(body);
+
+                const roof = new THREE.Mesh(roofGeo, roofMat);
+                roof.position.y = 3.5;
+                roof.rotation.y = Math.PI / 4;
+                buildingGroup.add(roof);
+
+                buildingGroup.position.set(x, 0, z);
+                islandGroup.add(buildingGroup);
+                structures.push(buildingGroup);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = Date.now() * 0.0015;
+
+            islandGroup.position.y = Math.sin(time) * 0.2;
+            if (waterMesh) {
+                waterMesh.rotation.z = Math.sin(time * 0.4) * 0.005;
+            }
+
+            floatingWeirdObjects.forEach((obj, idx) => {
+                obj.rotation.x += 0.01;
+                obj.rotation.y += 0.015;
+                obj.position.y = obj.userData.baseY + Math.sin(time * 2 + idx) * 8;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function updateStatsUI() {
+            document.getElementById('followers-count').innerText = followers.toLocaleString();
+            document.getElementById('houses-count').innerText = housesCount.toLocaleString();
+            document.getElementById('max-house-num').innerText = Math.max(1, housesCount);
+        }
+
+        function startSyncedCloudTimer() {
+            setInterval(() => {
+                const remaining = Math.floor((cloudCountdownTarget - Date.now()) / 1000);
+                if (remaining <= 0) {
+                    cloudCountdownTarget = Date.now() + 1800000;
+                }
+                const m = Math.floor(Math.max(0, remaining) / 60).toString().padStart(2, '0');
+                const s = (Math.max(0, remaining) % 60).toString().padStart(2, '0');
+                document.getElementById('countdown-label').innerText = `${m}:${s}`;
+            }, 1000);
+        }
+
+        window.toggleFullscreen = async function() {
+            const topUi = document.getElementById('top-ui');
+            const bottomUi = document.getElementById('bottom-ui');
+            const zoomHint = document.getElementById('zoom-hint');
+            const exitBtn = document.getElementById('exit-fullscreen-btn');
+            const icon = document.getElementById('fullscreen-icon');
+            try {
+                if (!document.fullscreenElement) {
+                    const target = document.documentElement;
+                    if (target.requestFullscreen) await target.requestFullscreen();
+                    else if (target.webkitRequestFullscreen) target.webkitRequestFullscreen();
+                    isFullscreen = true;
+                } else {
+                    if (document.exitFullscreen) await document.exitFullscreen();
+                    isFullscreen = false;
+                }
+            } catch (err) {
+                // במכשירים שלא מאפשרים Fullscreen API, עדיין מסתירים את הממשק כדי להציג את העולם
+                isFullscreen = !isFullscreen;
+            }
+            topUi.classList.toggle('fullscreen-hidden', isFullscreen);
+            bottomUi.classList.toggle('fullscreen-hidden', isFullscreen);
+            zoomHint.classList.toggle('fullscreen-hidden', isFullscreen);
+            exitBtn.classList.toggle('fullscreen-hidden', !isFullscreen);
+            icon.className = isFullscreen ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+            setTimeout(onWindowResize, 120);
+        };
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && isFullscreen) {
+                isFullscreen = false;
+                document.getElementById('top-ui').classList.remove('fullscreen-hidden');
+                document.getElementById('bottom-ui').classList.remove('fullscreen-hidden');
+                document.getElementById('zoom-hint').classList.remove('fullscreen-hidden');
+                document.getElementById('exit-fullscreen-btn').classList.add('fullscreen-hidden');
+                document.getElementById('fullscreen-icon').className = 'fa-solid fa-expand';
+                setTimeout(onWindowResize, 120);
+            }
+        });
+
+        window.openVerificationModal = function() {
+            document.getElementById('manual-followers-input').value = followers;
+            document.getElementById('admin-pass-input').value = '';
+            document.getElementById('verification-modal').classList.remove('hidden');
+        }
+
+        window.closeVerificationModal = function() {
+            document.getElementById('verification-modal').classList.add('hidden');
+        }
+
+        window.applyCloudFollowers = async function() {
+            const pass = document.getElementById('admin-pass-input').value.trim();
+            if (pass !== "STRANGE-2026-SECRET") {
+                showBanner("❌ קוד ניהול שגוי!");
+                return;
+            }
+
+            const inputVal = parseInt(document.getElementById('manual-followers-input').value);
+            if (!isNaN(inputVal) && inputVal >= 0) {
+                followers = inputVal;
+                housesCount = followers;
+
+                try {
+                    if (db) {
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'island_state_logo_v4');
+                        await setDoc(docRef, { followers: followers, customizations: houseCustomizations, countdownTimestamp: cloudCountdownTarget }, { merge: true });
+                    }
+                } catch(e) {
+                    console.error("Cloud save error", e);
+                }
+
+                rebuildIsland();
+                updateStatsUI();
+                closeVerificationModal();
+                showBanner(`✨ העוקבים עודכנו בהצלחה ל-${followers}!`);
+            }
+        }
+
+        window.openCustomizer = function() {
+            document.getElementById('target-house-id').max = Math.max(1, housesCount);
+            document.getElementById('customizer-modal').classList.remove('hidden');
+        }
+
+        window.closeCustomizer = function() {
+            document.getElementById('customizer-modal').classList.add('hidden');
+        }
+
+        window.saveHouseCustomization = async function() {
+            const houseId = parseInt(document.getElementById('target-house-id').value);
+            const color = document.getElementById('house-color-select').value;
+            const owner = document.getElementById('house-owner-input').value.trim();
+
+            if (houseId >= 1 && houseId <= housesCount) {
+                if (!houseCustomizations[houseId]) houseCustomizations[houseId] = {};
+                houseCustomizations[houseId].color = color;
+                houseCustomizations[houseId].owner = owner;
+
+                try {
+                    if (db) {
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'island_state_logo_v4');
+                        await setDoc(docRef, { followers: followers, customizations: houseCustomizations, countdownTimestamp: cloudCountdownTarget }, { merge: true });
+                    }
+                } catch(e) {
+                    console.error("Cloud save error", e);
+                }
+
+                rebuildIsland();
+                closeCustomizer();
+                showBanner(`🎨 הבית מספר ${houseId} עוצב בהצלחה!`);
+            } else {
+                showBanner("❌ מספר בית לא תקין!");
+            }
+        }
+
+        function showBanner(text) {
+            const banner = document.getElementById('event-banner');
+            const textEl = document.getElementById('event-text');
+            textEl.innerText = text;
+            banner.classList.remove('-translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                banner.classList.add('-translate-y-20', 'opacity-0');
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
